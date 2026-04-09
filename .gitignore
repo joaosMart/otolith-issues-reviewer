@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+.superpowers/
+images/
+*.csv
+*.json
+otolith-label-*.json
