@@ -5,7 +5,7 @@ import folium
 from streamlit_folium import st_folium
 
 from hf_data import load_metadata, load_image
-from sheets import connect, load_annotations, save_annotation
+from sheets import connect, get_annotator_names, load_annotations, save_annotation
 from image_utils import adjust_image, clahe_enhancement
 
 # --- Page config ---
@@ -34,6 +34,9 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
     st.session_state.selected_age = None
     st.session_state.uncertain = False
+    st.session_state.brightness = 0
+    st.session_state.contrast = 0
+    st.session_state.clahe_on = False
 
 metadata = get_metadata()
 worksheet = get_worksheet()
@@ -50,20 +53,6 @@ if st.session_state.get("_needs_annotation_load"):
     else:
         st.session_state.selected_age = None
         st.session_state.uncertain = False
-
-
-# --- Load annotations and find resume point ---
-def refresh_annotations():
-    return load_annotations(worksheet)
-
-
-if "annotations" not in st.session_state:
-    st.session_state.annotations = refresh_annotations()
-    # Jump to first unannotated image
-    for i, row in enumerate(metadata):
-        if row["image_id"] not in st.session_state.annotations:
-            st.session_state.current_index = i
-            break
 
 
 # --- Navigation functions ---
@@ -117,12 +106,44 @@ st.components.v1.html(
 )
 
 
-# --- Annotator name ---
-annotator = st.sidebar.text_input("Your name", key="annotator_name")
+# --- Annotator selection ---
+existing_names = get_annotator_names(worksheet)
+
+if existing_names:
+    st.sidebar.subheader("Returning annotator")
+    selected = st.sidebar.selectbox("Select your name", existing_names, index=None, placeholder="Choose...")
+else:
+    selected = None
+
+st.sidebar.subheader("New annotator")
+new_name = st.sidebar.text_input("Enter your name")
+
+if new_name:
+    annotator = new_name
+elif selected:
+    annotator = selected
+else:
+    annotator = None
 
 if not annotator:
-    st.warning("Please enter your name in the sidebar to begin annotating.")
+    st.warning("Please select or enter your name in the sidebar to begin annotating.")
     st.stop()
+
+# --- Load annotations for this annotator ---
+if "annotator_loaded" not in st.session_state or st.session_state.annotator_loaded != annotator:
+    st.session_state.annotations = load_annotations(worksheet, annotator)
+    st.session_state.annotator_loaded = annotator
+    st.session_state.current_index = 0
+    st.session_state.selected_age = None
+    st.session_state.uncertain = False
+    st.session_state.brightness = 0
+    st.session_state.contrast = 0
+    st.session_state.clahe_on = False
+    # Jump to first unannotated image
+    for i, row in enumerate(metadata):
+        if row["image_id"] not in st.session_state.annotations:
+            st.session_state.current_index = i
+            break
 
 # --- Check completion ---
 if "annotations" in st.session_state and len(st.session_state.annotations) >= total_images:  # total_images
@@ -166,8 +187,8 @@ with left_col:
     # Load and display image
     raw_image = load_image(HF_REPO_ID, HF_TOKEN, image_id)
 
-    brightness = st.slider("Brightness", -50, 50, 0, key="brightness")
-    contrast = st.slider("Contrast", -50, 50, 0, key="contrast")
+    brightness = st.slider("Brightness", -50, 50, key="brightness")
+    contrast = st.slider("Contrast", -50, 50, key="contrast")
 
     if brightness != 0 or contrast != 0:
         display_image = adjust_image(raw_image, brightness, contrast)
@@ -178,11 +199,11 @@ with left_col:
     with img_btn_cols[0]:
         clahe_on = st.toggle("CLAHE enhance", key="clahe_on")
     with img_btn_cols[1]:
-        if st.button("Reset image"):
+        def _reset_image():
             st.session_state.brightness = 0
             st.session_state.contrast = 0
             st.session_state.clahe_on = False
-            st.rerun()
+        st.button("Reset image", on_click=_reset_image)
 
     if clahe_on:
         display_image = clahe_enhancement(display_image)
