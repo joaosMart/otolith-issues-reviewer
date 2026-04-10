@@ -214,6 +214,11 @@ with left_col:
 with right_col:
     # Metadata
     st.subheader("Metadata")
+    show_mid = st.toggle("Show Measurement ID", value=False, key="show_measurement_id")
+    if show_mid:
+        st.write(f"**Measurement ID:** {current.get('measurement_id', 'N/A')}")
+    else:
+        st.write(f"**Measurement ID:** *hidden*")
     st.write(f"**Length:** {current.get('length', 'N/A')}")
     st.write(f"**Month:** {current.get('month', 'N/A')}")
 
