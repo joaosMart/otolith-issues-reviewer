@@ -9,7 +9,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-HEADER = ["image_id", "annotator", "age", "previous_age", "uncertain", "is_issue", "timestamp"]
+HEADER = ["image_id", "annotator", "age", "previous_age", "uncertain", "is_issue", "timestamp", "comments", "unusable"]
 
 
 def connect(service_account_info: dict, sheet_name: str) -> gspread.Worksheet:
@@ -48,6 +48,8 @@ def load_annotations(worksheet: gspread.Worksheet, annotator: str) -> dict[str, 
             "previous_age": record["previous_age"],
             "uncertain": str(record["uncertain"]).upper() == "TRUE",
             "timestamp": record["timestamp"],
+            "comments": record.get("comments", ""),
+            "unusable": str(record.get("unusable", "")).upper() == "TRUE",
         }
     return annotations
 
@@ -60,15 +62,17 @@ def save_annotation(
     previous_age: int,
     uncertain: bool,
     is_issue: bool,
+    comments: str = "",
+    unusable: bool = False,
     existing_row: int | None = None,
 ):
     """Write or update an annotation row in the sheet."""
     timestamp = datetime.now(timezone.utc).isoformat()
-    row_data = [image_id, annotator, age, previous_age, str(uncertain).upper(), str(is_issue).upper(), timestamp]
+    row_data = [image_id, annotator, age, previous_age, str(uncertain).upper(), str(is_issue).upper(), timestamp, comments, str(unusable).upper()]
 
     if existing_row:
         # Update existing row
-        worksheet.update(f"A{existing_row}:G{existing_row}", [row_data])
+        worksheet.update(f"A{existing_row}:I{existing_row}", [row_data])
     else:
         # Append new row
         worksheet.append_row(row_data, value_input_option="RAW")

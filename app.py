@@ -34,6 +34,8 @@ if "current_index" not in st.session_state:
     st.session_state.current_index = 0
     st.session_state.selected_age = None
     st.session_state.uncertain = False
+    st.session_state.unusable = False
+    st.session_state.comments = ""
     st.session_state.brightness = 0
     st.session_state.contrast = 0
     st.session_state.clahe_on = False
@@ -50,9 +52,13 @@ if st.session_state.get("_needs_annotation_load"):
     if _ann:
         st.session_state.selected_age = _ann["age"]
         st.session_state.uncertain = _ann["uncertain"]
+        st.session_state.comments = _ann.get("comments", "")
+        st.session_state.unusable = _ann.get("unusable", False)
     else:
         st.session_state.selected_age = None
         st.session_state.uncertain = False
+        st.session_state.comments = ""
+        st.session_state.unusable = False
 
 
 # --- Navigation functions ---
@@ -69,15 +75,19 @@ def go_next():
 
 
 def _load_existing_annotation():
-    """Pre-fill age/uncertain if this image was already annotated."""
+    """Pre-fill age/uncertain/comments/unusable if this image was already annotated."""
     current = metadata[st.session_state.current_index]
     ann = st.session_state.annotations.get(current["image_id"])
     if ann:
         st.session_state.selected_age = ann["age"]
         st.session_state.uncertain = ann["uncertain"]
+        st.session_state.comments = ann.get("comments", "")
+        st.session_state.unusable = ann.get("unusable", False)
     else:
         st.session_state.selected_age = None
         st.session_state.uncertain = False
+        st.session_state.comments = ""
+        st.session_state.unusable = False
 
 
 # --- Keyboard navigation (arrow keys) ---
@@ -136,6 +146,8 @@ if "annotator_loaded" not in st.session_state or st.session_state.annotator_load
     st.session_state.current_index = 0
     st.session_state.selected_age = None
     st.session_state.uncertain = False
+    st.session_state.unusable = False
+    st.session_state.comments = ""
     st.session_state.brightness = 0
     st.session_state.contrast = 0
     st.session_state.clahe_on = False
@@ -164,6 +176,8 @@ existing_ann = st.session_state.annotations.get(image_id)
 if existing_ann and st.session_state.selected_age is None:
     st.session_state.selected_age = existing_ann["age"]
     st.session_state.uncertain = existing_ann["uncertain"]
+    st.session_state.comments = existing_ann.get("comments", "")
+    st.session_state.unusable = existing_ann.get("unusable", False)
 
 
 # --- Layout ---
@@ -246,17 +260,25 @@ with right_col:
     # Uncertain flag
     st.checkbox("Flag as uncertain", key="uncertain")
 
+    # Unusable flag
+    st.checkbox("Mark as error / unusable", key="unusable")
+
+    # Comments
+    st.text_area("Comments", key="comments", height=100, placeholder="Optional notes...")
+
     # Submit
-    can_submit = st.session_state.selected_age is not None
+    can_submit = st.session_state.selected_age is not None or st.session_state.unusable
     if st.button("Submit", type="primary", disabled=not can_submit, use_container_width=True):
         save_annotation(
             worksheet=worksheet,
             image_id=image_id,
             annotator=annotator,
-            age=st.session_state.selected_age,
+            age=st.session_state.selected_age or 0,
             previous_age=int(float(current.get("previous_age", 0))),
             uncertain=st.session_state.uncertain,
             is_issue=str(current.get("is_issue", "")).upper() == "TRUE",
+            comments=st.session_state.comments,
+            unusable=st.session_state.unusable,
             existing_row=existing_ann["row_number"] if existing_ann else None,
         )
         # Update local cache instead of re-fetching the whole sheet
@@ -266,6 +288,8 @@ with right_col:
             "age": st.session_state.selected_age,
             "previous_age": int(float(current.get("previous_age", 0))),
             "uncertain": st.session_state.uncertain,
+            "comments": st.session_state.comments,
+            "unusable": st.session_state.unusable,
         }
         # Auto-advance: set index and flag to load annotation on next rerun
         if st.session_state.current_index < total_images - 1:
