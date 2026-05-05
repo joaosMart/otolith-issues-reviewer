@@ -27,16 +27,30 @@ def connect(service_account_info: dict, sheet_name: str) -> gspread.Worksheet:
     return worksheet
 
 
+def _get_all_records(worksheet: gspread.Worksheet) -> list[dict]:
+    """Get all records, handling rows with fewer columns than the header."""
+    data = worksheet.get_all_values()
+    if not data:
+        return []
+    header = data[0]
+    records = []
+    for row in data[1:]:
+        # Pad short rows with empty strings
+        padded = row + [""] * (len(header) - len(row))
+        records.append(dict(zip(header, padded)))
+    return records
+
+
 def get_annotator_names(worksheet: gspread.Worksheet) -> list[str]:
     """Return sorted list of unique annotator names from the sheet."""
-    records = worksheet.get_all_records()
+    records = _get_all_records(worksheet)
     names = sorted({r["annotator"] for r in records if r.get("annotator")})
     return names
 
 
 def load_annotations(worksheet: gspread.Worksheet, annotator: str) -> dict[str, dict]:
     """Load annotations for a specific annotator. Returns {image_id: row_dict}."""
-    records = worksheet.get_all_records()
+    records = _get_all_records(worksheet)
     annotations = {}
     for i, record in enumerate(records):
         if record["annotator"] != annotator:
