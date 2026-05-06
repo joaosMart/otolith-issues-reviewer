@@ -231,6 +231,9 @@ with right_col:
     show_mid = st.toggle("Show Measurement ID", value=False, key="show_measurement_id")
     if show_mid:
         st.write(f"**Measurement ID:** {current.get('measurement_id', 'N/A')}")
+        st.write(f"**Cruise:** {current.get('leidangur', 'N/A')}")
+        st.write(f"**Station Nr:** {current.get('stod_nr', 'N/A')}")
+        st.write(f"**Individual ID:** {current.get('kvarna_nr', 'N/A')}")
     else:
         st.write(f"**Measurement ID:** *hidden*")
     st.write(f"**Length:** {current.get('length', 'N/A')}")
@@ -280,6 +283,9 @@ with right_col:
             comments=st.session_state.comments,
             unusable=st.session_state.unusable,
             existing_row=existing_ann["row_number"] if existing_ann else None,
+            cruise=current.get("leidangur", ""),
+            station_nr=current.get("stod_nr", ""),
+            individual_id=current.get("kvarna_nr", ""),
         )
         # Update local cache instead of re-fetching the whole sheet
         st.session_state.annotations[image_id] = {

@@ -27,6 +27,9 @@ def load_metadata(repo_id: str, token: str) -> list[dict]:
                 "latitude": r.get("shot_latitude", ""),
                 "longitude": r.get("shot_longitude", ""),
                 "is_issue": r.get("is_issue", ""),
+                "leidangur": r.get("leidangur", ""),
+                "stod_nr": r.get("stod_nr", ""),
+                "kvarna_nr": r.get("kvarna_nr", ""),
             })
     # Shuffle with fixed seed so order is random but consistent
     random.seed(42)

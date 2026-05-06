@@ -9,7 +9,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-HEADER = ["image_id", "annotator", "age", "previous_age", "uncertain", "is_issue", "timestamp", "comments", "unusable"]
+HEADER = ["image_id", "annotator", "age", "previous_age", "uncertain", "is_issue", "timestamp", "comments", "unusable", "cruise", "station_nr", "individual_id"]
 
 
 def connect(service_account_info: dict, sheet_name: str) -> gspread.Worksheet:
@@ -19,10 +19,14 @@ def connect(service_account_info: dict, sheet_name: str) -> gspread.Worksheet:
     spreadsheet = client.open(sheet_name)
     worksheet = spreadsheet.sheet1
 
-    # Ensure header row exists
+    # Ensure header row exists and has all columns
     existing = worksheet.row_values(1)
     if existing != HEADER:
-        worksheet.update("A1", [HEADER])
+        # Only extend if existing header is a prefix of the new one (don't lose data)
+        if HEADER[:len(existing)] == existing:
+            worksheet.update("A1", [HEADER])
+        elif not existing:
+            worksheet.update("A1", [HEADER])
 
     return worksheet
 
@@ -79,14 +83,17 @@ def save_annotation(
     comments: str = "",
     unusable: bool = False,
     existing_row: int | None = None,
+    cruise: str = "",
+    station_nr: str = "",
+    individual_id: str = "",
 ):
     """Write or update an annotation row in the sheet."""
     timestamp = datetime.now(timezone.utc).isoformat()
-    row_data = [image_id, annotator, age, previous_age, str(uncertain).upper(), str(is_issue).upper(), timestamp, comments, str(unusable).upper()]
+    row_data = [image_id, annotator, age, previous_age, str(uncertain).upper(), str(is_issue).upper(), timestamp, comments, str(unusable).upper(), cruise, station_nr, individual_id]
 
     if existing_row:
         # Update existing row
-        worksheet.update(f"A{existing_row}:I{existing_row}", [row_data])
+        worksheet.update(f"A{existing_row}:L{existing_row}", [row_data])
     else:
         # Append new row
         worksheet.append_row(row_data, value_input_option="RAW")
